@@ -57,58 +57,28 @@ http://127.0.0.1:8000/
 | Endpoint | Method | Input | Output | Description |
 |---|---|---|---|---|
 | `/` | `GET` | - | HTML page | Serves `templates/index.html` |
-| `/api/process` | `POST` | `audio_file` (`UploadFile`) | JSON: `transcript`, `reply`, `audio_data` | Runs STT → LLM → TTS workflow |
+| `/api/process` | `POST` | `audio_file` (`UploadFile`) | JSON: `transcript`, `reply`, `audio_data` | Runs STT -> LLM -> TTS workflow |
 
-## ERD-style Component View
+## Simple Pipeline (ERD Replacement)
 
-This project does not persist user data in a database, so the “ERD” is represented as a component-relationship table to describe how each piece of the system works together.
+This repo does not use a database, so we keep the architecture intentionally simple:
 
-| Entity / Component | Key Fields / Role | Relationship | How it Works |
-|---|---|---|---|
-| User | Audio stream / uploaded file | Sends input to | Frontend (`templates/index.html`) calls `/api/process` |
-| API Route (`/api/process`) | `audio_file` | Orchestrates | Calls STT function, LLM function, TTS function |
-| STT Service (`speech_to_text_wispher`) | Audio bytes, text output | Feeds | Produces `transcript` used by LLM |
-| LLM Service (`llama_model`) | Transcript text | Feeds | Produces `answer_text` (assistant response) |
-| TTS Service (`text_to_speech_gtts`) | `answer_text` | Produces | Generates `output.mp3` bytes (Base64 in response) |
-| Response | `transcript`, `reply`, `audio_data` | Returns to | Browser shows transcript/reply and plays audio |
+```text
+Upload/Record Audio -> STT (Google Speech API or Whisper) -> LLM -> gTTS -> Audio Reply
+```
 
-### ERD/Workflow Diagram (Mermaid)
+### Simple Workflow Diagram
 
 ```mermaid
-erDiagram
-    USER ||--o{ AUDIO_REQUEST : submits
-    AUDIO_REQUEST ||--|| API_ROUTE : calls
-    API_ROUTE ||--|| STT_RESULT : invokes
-    STT_RESULT ||--|| LLM_RESPONSE : sends
-    LLM_RESPONSE ||--|| TTS_OUTPUT : sends_to
-    TTS_OUTPUT ||--|| CLIENT_RESPONSE : returns
-
-    USER {
-      string input_source "audio file or mic recording"
-    }
-    AUDIO_REQUEST {
-      string audio_file
-      string format "wav/mp3/webm/ogg/m4a"
-    }
-    API_ROUTE {
-      string endpoint "/api/process"
-      string method "POST"
-      string status_code
-    }
-    STT_RESULT {
-      string transcript
-    }
-    LLM_RESPONSE {
-      string answer
-    }
-    TTS_OUTPUT {
-      string audio_data "base64 mp3"
-    }
-    CLIENT_RESPONSE {
-      string transcript
-      string reply
-      string audio_data
-    }
+flowchart LR
+    A["User"] --> B["Upload or Record Audio"]
+    B --> C{"STT"}
+    C -->|Google Speech API| D["Transcript"]
+    C -->|Whisper| D
+    D --> E["LLM"]
+    E --> F["gTTS"]
+    F --> G["Transcribed Response Audio"]
+    G --> A
 ```
 
 ## Project Files
@@ -126,7 +96,11 @@ erDiagram
 
 ![SpeechChatbot Testing Screenshot](data/image.png)
 
-[Download/Watch Testing Video (MP4)](data/Testing.mp4)
+<video controls width="720" src="https://raw.githubusercontent.com/Engineer-Mohsin-Shah/SpeechChatbot-STT-LLM-TTS/main/data/Testing.mp4">
+  Download/Watch Testing Video (MP4)
+</video>
+
+[Download the testing video (raw link)](https://raw.githubusercontent.com/Engineer-Mohsin-Shah/SpeechChatbot-STT-LLM-TTS/main/data/Testing.mp4)
 
 ## Notes
 
