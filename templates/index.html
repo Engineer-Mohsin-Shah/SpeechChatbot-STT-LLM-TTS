@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Chatbot</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; max-width: 760px; margin: auto; }
+    textarea { width: 100%; min-height: 90px; }
+    button { margin-right: 8px; padding: 10px 14px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 14px; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>STT + LLM + TTS</h2>
+
+  <div>
+    <h3>1) Upload audio</h3>
+    <input id="audio-file" type="file" accept="audio/*" />
+    <button onclick="uploadAudio()">Upload & Process</button>
+  </div>
+
+  <div style="margin-top:18px">
+    <h3>2) Record from microphone</h3>
+    <button id="start">Start Recording</button>
+    <button id="stop" disabled>Stop Recording</button>
+  </div>
+
+  <div class="card">
+    <strong>Transcript:</strong>
+    <pre id="transcript">-</pre>
+
+    <strong>Reply:</strong>
+    <pre id="reply">-</pre>
+
+    <strong>Playback:</strong>
+    <audio id="player" controls></audio>
+  </div>
+
+  <script>
+    let recorder, chunks = [];
+
+    const API_URL = "/api/process";
+
+    async function sendAudioBlob(blob) {
+      const fd = new FormData();
+      fd.append("audio_file", new File([blob], `record.webm`, { type: blob.type || "audio/webm" }));
+
+      const res = await fetch(API_URL, { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.detail || data.error || "Failed to process");
+        return;
+      }
+
+      document.getElementById("transcript").textContent = data.transcript;
+      document.getElementById("reply").textContent = data.reply;
+      const player = document.getElementById("player");
+      player.src = data.audio_data;
+      player.play().catch(() => {});
+    }
+
+    async function uploadAudio() {
+      const input = document.getElementById("audio-file");
+      const file = input.files[0];
+      if (!file) return alert("Select an audio file first.");
+
+      const fd = new FormData();
+      fd.append("audio_file", file);
+
+      const res = await fetch(API_URL, { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.detail || data.error || "Failed to process");
+        return;
+      }
+
+      document.getElementById("transcript").textContent = data.transcript;
+      document.getElementById("reply").textContent = data.reply;
+      document.getElementById("player").src = data.audio_data;
+    }
+
+    document.getElementById("start").onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        await sendAudioBlob(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      recorder.start();
+      document.getElementById("start").disabled = true;
+      document.getElementById("stop").disabled = false;
+    };
+
+    document.getElementById("stop").onclick = () => {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        document.getElementById("start").disabled = false;
+        document.getElementById("stop").disabled = true;
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+.env
+.vscode
+.agents
+__pycache__
+English.wav
+output.mp3
+user_audio.wav

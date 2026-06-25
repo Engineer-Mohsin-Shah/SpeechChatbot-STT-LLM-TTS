@@ -1,0 +1,10 @@
+groq
+gtts
+speechrecognition
+pyaudio
+langchain_groq
+dotenv
+fastapi
+uvicorn
+jinja2
+python-multipart
